@@ -49,6 +49,7 @@ void VulkanRenderer::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugU
 	}
 }
 
+
 void VulkanRenderer::CreateInstance()
 {
 	// Application information
@@ -70,7 +71,6 @@ void VulkanRenderer::CreateInstance()
 	createInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
 	createInfo.ppEnabledExtensionNames = instanceExtensions.data();
 
-	// Setup validation layers
 	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 	if (CheckValidationEnabled())
 	{

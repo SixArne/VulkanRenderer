@@ -11,6 +11,8 @@
 *.o
 *.obj
 
+*.idea
+
 # Precompiled Headers
 *.gch
 *.pch
