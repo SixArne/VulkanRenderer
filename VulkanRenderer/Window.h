@@ -13,7 +13,7 @@ public:
 	~Window();
 
 	void Init();
-	GLFWwindow* GetWindow() { return m_pWindow; }
+	GLFWwindow* GetWindow() const { return m_pWindow; }
 
 private:
 	GLFWwindow* m_pWindow{ };

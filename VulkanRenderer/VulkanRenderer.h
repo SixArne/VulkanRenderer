@@ -1,9 +1,11 @@
 #pragma once
 
+
 #define GLFW_INCLUDE_VULKAN
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <vector>
+#include <algorithm>
 
 #include "Utilities.h"
 
@@ -31,6 +33,14 @@ private:
 		VkDevice logicalDevice;
 	} m_MainDevice;
 	VkQueue m_GraphicsQueue{};
+	VkQueue m_PresentationQueue{};
+	VkSurfaceKHR m_Surface{};
+	VkSwapchainKHR m_Swapchain{};
+	std::vector<SwapchainImage> m_SwapchainImages{};
+
+	// - Utility
+	VkFormat m_SwapchainImageFormat{};
+	VkExtent2D m_SwapchainExtent{};
 
 	const std::vector<const char*> m_ValidationLayers = {
 		"VK_LAYER_KHRONOS_validation"
@@ -42,31 +52,43 @@ private:
 	// - Create functions
 	void CreateInstance();
 	void CreateLogicalDevice();
+	void CreateSurface();
 	void CreateDebugMessenger();
+	void CreateSwapchain();
 	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
 
 	// - Destroy functions
 	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 
 	// - Get functions
-	VkDevice GetPhysicalDevice();
+	void GetPhysicalDevice();
 	std::vector<const char*> GetRequiredExtensions();
 
 	// - Support functions
+	bool CheckValidationEnabled();
+
+	// -- Checker functions
+	bool CheckValidationLayerSupport();
 	bool CheckInstanceExtensionSupport(std::vector<const char*>* checkExtensions);
 	bool CheckDeviceSuitable(VkPhysicalDevice device);
-	bool CheckValidationEnabled();
-	bool CheckValidationLayerSupport();
+	bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 
-	// - Checker functions
+	// -- Choose functions
+	VkSurfaceFormatKHR ChooseBestSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& formats);
+	VkPresentModeKHR ChooseBestPresentationMode(const std::vector<VkPresentModeKHR>& presentationModes);
+	VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& surfaceCapabilities);
 
-
-	// - Populate functions
+	// -- Populate functions
 	void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& debugCreateInfo);
 
-	// - Getter functions
+	// -- Getter functions
 	QueueFamilyIndices GetQueueFamilies(VkPhysicalDevice device);
+	SwapchainDetails GetSwapChainDetails(VkPhysicalDevice device);
 
+	// - Create functions
+	VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+
+	// Validation layer stuff
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 		VkDebugUtilsMessageTypeFlagsEXT messageType,
