@@ -55,6 +55,7 @@ private:
 	void CreateSurface();
 	void CreateDebugMessenger();
 	void CreateSwapchain();
+	void CreateGraphicsPipeline();
 	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
 
 	// - Destroy functions
@@ -87,6 +88,7 @@ private:
 
 	// - Create functions
 	VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+	VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
 	// Validation layer stuff
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(

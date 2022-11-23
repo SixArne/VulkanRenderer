@@ -24,6 +24,7 @@ int VulkanRenderer::Init(Window* window)
 		GetPhysicalDevice();
 		CreateLogicalDevice();
 		CreateSwapchain();
+		CreateGraphicsPipeline();
 	}
 	catch(const std::runtime_error &e) {
 		printf("[ERROR]: %s\n", e.what());
@@ -260,6 +261,23 @@ void VulkanRenderer::CreateSwapchain()
 
 		m_SwapchainImages.push_back(swapchainImage);
 	}
+}
+
+void VulkanRenderer::CreateGraphicsPipeline()
+{
+	// Read in SPIR-V code of shaders
+	auto vertexShaderCode = readFile("Shaders/vert.spv");
+	auto fragmentShaderCode = readFile("Shaders/frag.spv");
+
+	// Build shader modules to link to graphics pipeline
+	VkShaderModule vertexShaderModule = CreateShaderModule(vertexShaderCode);
+	VkShaderModule fragmentShaderModule = CreateShaderModule(fragmentShaderCode);
+
+
+
+	// CREATE PIPELINE (once we create pipeline we can destroy here)
+	vkDestroyShaderModule(m_MainDevice.logicalDevice, fragmentShaderModule, nullptr);
+	vkDestroyShaderModule(m_MainDevice.logicalDevice, vertexShaderModule, nullptr);
 }
 
 void VulkanRenderer::GetPhysicalDevice()
@@ -628,6 +646,24 @@ VkImageView VulkanRenderer::CreateImageView(VkImage image, VkFormat format, VkIm
 	}
 
 	return imageView;
+}
+
+VkShaderModule VulkanRenderer::CreateShaderModule(const std::vector<char>& code)
+{
+	// Shader module creation information
+	VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+	shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	shaderModuleCreateInfo.codeSize = code.size();
+	shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+	VkShaderModule shaderModule{};
+	VkResult result = vkCreateShaderModule(m_MainDevice.logicalDevice, &shaderModuleCreateInfo, nullptr, &shaderModule);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create shader module");
+	}
+
+	return shaderModule;
 }
 
 VkResult VulkanRenderer::CreateDebugUtilsMessengerEXT(VkInstance instance,
