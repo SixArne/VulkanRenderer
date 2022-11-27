@@ -8,7 +8,7 @@ int main()
 {
 	std::string windowName = "Vulkan renderer";
 
-	Window window = Window{ windowName, 1600, 900 };
+	Window window = Window{ windowName, 800, 600 };
 	VulkanRenderer renderer = VulkanRenderer{};
 
 	if(renderer.Init(&window) == EXIT_FAILURE)
@@ -17,7 +17,7 @@ int main()
 	}
 
 	// Start window event loop
-	window.Init();
+	window.Init(renderer);
 
 	// Cleanup vulkan
 	renderer.Cleanup();

@@ -19,10 +19,13 @@ public:
 	~VulkanRenderer() = default;
 
 	int Init(Window* window);
+	void Draw();
 	void Cleanup();
 
 private:
 	Window* m_pWindow;
+
+	uint32_t m_CurrentFrame{};
 
 	// Vulkan components
 	VkInstance m_Instance;
@@ -55,6 +58,11 @@ private:
 	VkFormat m_SwapchainImageFormat{};
 	VkExtent2D m_SwapchainExtent{};
 
+	// - Synchronization
+	std::vector<VkSemaphore> m_ImagesAvailable{};
+	std::vector<VkSemaphore> m_RendersFinished{};
+	std::vector<VkFence> m_DrawFences{};
+
 	const std::vector<const char*> m_ValidationLayers = {
 		"VK_LAYER_KHRONOS_validation"
 	};
@@ -73,6 +81,7 @@ private:
 	void CreateFrameBuffers();
 	void CreateCommandPool();
 	void CreateCommandBuffers();
+	void CreateSynchronization();
 
 	// - Record functions
 	void RecordCommands();
