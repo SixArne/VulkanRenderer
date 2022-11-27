@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <algorithm>
+#include <array>
 
 #include "Utilities.h"
 
@@ -38,6 +39,11 @@ private:
 	VkSwapchainKHR m_Swapchain{};
 	std::vector<SwapchainImage> m_SwapchainImages{};
 
+	// - Pipeline
+	VkPipeline m_GraphicsPipeline{};
+	VkPipelineLayout m_PipelineLayout{};
+	VkRenderPass m_RenderPass{};
+
 	// - Utility
 	VkFormat m_SwapchainImageFormat{};
 	VkExtent2D m_SwapchainExtent{};
@@ -55,6 +61,7 @@ private:
 	void CreateSurface();
 	void CreateDebugMessenger();
 	void CreateSwapchain();
+	void CreateRenderPass();
 	void CreateGraphicsPipeline();
 	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
 
