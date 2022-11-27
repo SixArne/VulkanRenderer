@@ -273,7 +273,23 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	VkShaderModule vertexShaderModule = CreateShaderModule(vertexShaderCode);
 	VkShaderModule fragmentShaderModule = CreateShaderModule(fragmentShaderCode);
 
+	// -- SHADER STAGE CREATION INFORMATION ---
+	// Vertex stage creation information
+	VkPipelineShaderStageCreateInfo vertexShaderCreateInfo{};
+	vertexShaderCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertexShaderCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT; // Shader stage type
+	vertexShaderCreateInfo.module = vertexShaderModule; // Module to be used
+	vertexShaderCreateInfo.pName = "main"; // function to run in shader file
 
+	// Fragment stage creation information
+	VkPipelineShaderStageCreateInfo fragmentShaderCreateInfo{};
+	fragmentShaderCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragmentShaderCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragmentShaderCreateInfo.module = fragmentShaderModule;
+	fragmentShaderCreateInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo shaderStages[] = { vertexShaderCreateInfo, fragmentShaderCreateInfo };
+	VkGraphicsPipelineCreateInfo pipelineCreateInfo{};
 
 	// CREATE PIPELINE (once we create pipeline we can destroy here)
 	vkDestroyShaderModule(m_MainDevice.logicalDevice, fragmentShaderModule, nullptr);
