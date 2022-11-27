@@ -27,7 +27,6 @@ private:
 	// Vulkan components
 	VkInstance m_Instance;
 	VkDebugUtilsMessengerEXT m_DebugMessenger;
-
 	struct
 	{
 		VkPhysicalDevice physicalDevice;
@@ -37,12 +36,20 @@ private:
 	VkQueue m_PresentationQueue{};
 	VkSurfaceKHR m_Surface{};
 	VkSwapchainKHR m_Swapchain{};
+
+	// These 3 will ALWAYS use the same index.
+	// So getting a command at index 0 will get the frame buffer at index 0 and the swapchain at index 0
 	std::vector<SwapchainImage> m_SwapchainImages{};
+	std::vector<VkFramebuffer> m_SwapchainFramebuffers{};
+	std::vector<VkCommandBuffer> m_CommandBuffers{};
 
 	// - Pipeline
 	VkPipeline m_GraphicsPipeline{};
 	VkPipelineLayout m_PipelineLayout{};
 	VkRenderPass m_RenderPass{};
+
+	// - Pools
+	VkCommandPool m_GraphicsCommandPool{};
 
 	// - Utility
 	VkFormat m_SwapchainImageFormat{};
@@ -63,8 +70,13 @@ private:
 	void CreateSwapchain();
 	void CreateRenderPass();
 	void CreateGraphicsPipeline();
-	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
+	void CreateFrameBuffers();
+	void CreateCommandPool();
+	void CreateCommandBuffers();
 
+	// - Record functions
+	void RecordCommands();
+	
 	// - Destroy functions
 	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 
@@ -98,6 +110,7 @@ private:
 	VkShaderModule CreateShaderModule(const std::vector<char>& code);
 
 	// Validation layer stuff
+	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 		VkDebugUtilsMessageTypeFlagsEXT messageType,
