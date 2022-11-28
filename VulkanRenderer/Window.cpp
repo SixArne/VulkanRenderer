@@ -28,23 +28,24 @@ void Window::Init(VulkanRenderer& renderer)
 {
 	while (!glfwWindowShouldClose(m_pWindow))
 	{
-		auto start = std::chrono::system_clock::now();
+		auto start = std::chrono::high_resolution_clock::now();
 
 		// Fetch events every frame
 		glfwPollEvents();
 
 		renderer.Draw();
 
-		auto end = std::chrono::system_clock::now();
-		float elapsed = std::chrono::duration_cast<
-			std::chrono::duration<float>>(end - start).count();
+		auto end = std::chrono::high_resolution_clock::now();
+		float elapsed = std::chrono::duration_cast<std::chrono::duration<float>>(end - start).count();
 		
 		m_ElapsedMilliSeconds += elapsed;
 
 		if (m_ElapsedMilliSeconds >= m_FPSIntervalMilliseconds)
 		{
-			std::cout << "Time since last frame: " <<  elapsed << '\n';
+			std::cout << "----------------------------------------------" << '\n';
+			std::cout << "Time since last frame: " <<  elapsed << "ms" << '\n';
 			std::cout << "FPS: " << 1.f / elapsed << '\n';
+			std::cout << "----------------------------------------------" << '\n';
 			m_ElapsedMilliSeconds = 0;
 		}
 	}
