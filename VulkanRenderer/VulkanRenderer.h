@@ -9,6 +9,7 @@
 #include <array>
 
 #include "Utilities.h"
+#include "Mesh.h"
 
 class Window;
 
@@ -26,6 +27,9 @@ private:
 	Window* m_pWindow;
 
 	uint32_t m_CurrentFrame{};
+
+	// Scene objects
+	std::vector<Mesh> m_MeshList{};
 
 	// Vulkan components
 	VkInstance m_Instance;

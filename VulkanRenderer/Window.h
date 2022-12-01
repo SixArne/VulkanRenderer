@@ -23,7 +23,7 @@ private:
 	uint32_t m_Width{};
 	uint32_t m_Height{};
 
-	float m_ElapsedMilliSeconds{};
-	float m_FPSIntervalMilliseconds{1};
+	double m_ElapsedMilliSeconds{};
+	double m_FPSIntervalMilliseconds{1.0};
 };
 

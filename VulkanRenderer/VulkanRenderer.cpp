@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 #include "Window.h"
-
+#include <random>
 
 int VulkanRenderer::Init(Window* window)
 {
@@ -29,6 +29,50 @@ int VulkanRenderer::Init(Window* window)
 		CreateGraphicsPipeline();
 		CreateFrameBuffers();
 		CreateCommandPool();
+
+		// Create a mesh
+		// Vertex data
+		std::vector<Vertex> meshVertices = {
+			{{-0.1, -0.4, 0.0}, {1.0,0.0,0.0}},		// 0
+			{{-0.1, 0.4, 0.0}, {0.0,1.0,0.0}},		// 1
+			{{-0.9, 0.4, 0.0}, {0.0,0.0,1.0}},		// 2
+			{{-0.9, -0.4, 0.0}, {1.0,1.0,0.0}},		// 3
+		};
+
+		std::vector<Vertex> meshVertices2 = {
+			{{0.9, -0.4, 0.0}, {1.0,0.0,0.0}},		// 0
+			{{0.9, 0.4, 0.0}, {0.0,1.0,0.0}},			// 1
+			{{0.1, 0.4, 0.0}, {0.0,0.0,1.0}},			// 2
+			{{0.1, -0.4, 0.0}, {1.0,1.0,0.0}},		// 3
+		};
+
+		// Index data
+		std::vector<uint32_t> meshIndices = {
+			0, 1, 2,
+			2, 3, 0
+		};
+
+		Mesh m1 = Mesh(
+			m_MainDevice.physicalDevice,
+			m_MainDevice.logicalDevice,
+			m_GraphicsQueue,
+			m_GraphicsCommandPool,
+			&meshVertices,
+			&meshIndices
+		);
+
+		Mesh m2 = Mesh(
+			m_MainDevice.physicalDevice,
+			m_MainDevice.logicalDevice,
+			m_GraphicsQueue,
+			m_GraphicsCommandPool,
+			&meshVertices2,
+			&meshIndices
+		);
+
+		m_MeshList.push_back(m1);
+		m_MeshList.push_back(m2);
+
 		CreateCommandBuffers();
 		RecordCommands();
 		CreateSynchronization();
@@ -100,6 +144,8 @@ void VulkanRenderer::Draw()
 		throw std::runtime_error("Failed to present info to surface");
 	}
 
+	
+
 	// Used to make semi unique semaphores, otherwise semaphore will be used for multiple frames and trigger irregularly
 	m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAME_DRAWS;
 }
@@ -108,6 +154,12 @@ void VulkanRenderer::Cleanup()
 {
 	// Wait until no actions being run on device before destroy
 	vkDeviceWaitIdle(m_MainDevice.logicalDevice);
+
+	// Cleanup
+	for (auto & mesh : m_MeshList)
+	{
+		mesh.DestroyBuffers();
+	}
 
 	for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
 	{
@@ -435,8 +487,8 @@ void VulkanRenderer::CreateRenderPass()
 void VulkanRenderer::CreateGraphicsPipeline()
 {
 	// Read in SPIR-V code of shaders
-	auto vertexShaderCode = readFile("Shaders/vert.spv");
-	auto fragmentShaderCode = readFile("Shaders/frag.spv");
+	auto vertexShaderCode = ReadFile("Shaders/vert.spv");
+	auto fragmentShaderCode = ReadFile("Shaders/frag.spv");
 
 	// Build shader modules to link to graphics pipeline
 	VkShaderModule vertexShaderModule = CreateShaderModule(vertexShaderCode);
@@ -459,13 +511,36 @@ void VulkanRenderer::CreateGraphicsPipeline()
 
 	VkPipelineShaderStageCreateInfo shaderStages[] = { vertexShaderCreateInfo, fragmentShaderCreateInfo };
 
+	// How the data for a single vertex (including info such as position, color, texture coordinates and normals) are at a whole
+	VkVertexInputBindingDescription bindingDescription{};
+	bindingDescription.binding = 0;									// Binding position (can bind multiple streams of data)
+	bindingDescription.stride = sizeof(Vertex);						// Offset to next piece of data
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;		// How to move between data between each vertex
+																	// VK_VERTEX_INPUT_RATE_VERTEX		: move on to next vertex
+																	// VK_VERTEX_INPUT_RATE_INSTANCE	: move on to vertex for next instance (can draw 100 trees as 1 tree)
+
+	// How the data for an attribute is defined within a vertex
+	std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+
+	// Position attribute
+	attributeDescriptions[0].binding = 0;								// Which binding it is at (same as above)
+	attributeDescriptions[0].location = 0;								// Which location it is at (same as above)
+	attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;		// Format data will take (helps define size)
+	attributeDescriptions[0].offset = offsetof(Vertex, pos);			// Offset from next attribute in data
+
+	// Color attribute
+	attributeDescriptions[1].binding = 0;								
+	attributeDescriptions[1].location = 1;								
+	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;	
+	attributeDescriptions[1].offset = offsetof(Vertex, col);			
+
 	// -- VERTEX INPUT --
 	VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo{};
 	vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
-	vertexInputCreateInfo.pVertexBindingDescriptions = nullptr;							// List of vertex binding descriptions (data spacing/stride information)
-	vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;						// List of vertex attribute descriptions (data format and where to bind to/from)
+	vertexInputCreateInfo.vertexBindingDescriptionCount = 1;
+	vertexInputCreateInfo.pVertexBindingDescriptions = &bindingDescription;											// List of vertex binding descriptions (data spacing/stride information)
+	vertexInputCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputCreateInfo.pVertexAttributeDescriptions = attributeDescriptions.data();								// List of vertex attribute descriptions (data format and where to bind to/from)
 
 	// -- INPUT ASSEMBLY --
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo{};
@@ -734,8 +809,18 @@ void VulkanRenderer::RecordCommands()
 				// Bind pipeline to be used in render pass (could use different pipelines here e.g. other shading)
 				vkCmdBindPipeline(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
 
-				// Execute pipeline (will run through this x amount of times)
-				vkCmdDraw(m_CommandBuffers[i], 3, 1, 0, 0);
+				for (auto mesh : m_MeshList)
+				{
+					const VkBuffer vertexBuffers[] = { mesh.GetVertexBuffer() };			// Buffers to bind
+					const VkDeviceSize offsets[] = { 0 };										// Offsets into buffers being bound
+					vkCmdBindVertexBuffers(m_CommandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+					// Bind mesh index buffer with 0 offset and using uint32_t
+					vkCmdBindIndexBuffer(m_CommandBuffers[i], mesh.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+					// Execute pipeline (will run through this x amount of times)
+					vkCmdDrawIndexed(m_CommandBuffers[i], mesh.GetIndexCount(), 1, 0, 0, 0);
+				}
 			}
 
 			// End render pass
