@@ -26,13 +26,20 @@ int VulkanRenderer::Init(Window* window)
 		CreateLogicalDevice();
 		CreateSwapchain();
 		CreateRenderPass();
+		CreateDescriptorSetLayout();
 		CreateGraphicsPipeline();
 		CreateFrameBuffers();
 		CreateCommandPool();
 
+		m_MVP.projection = glm::perspective(glm::radians(45.0f), (float)m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 100.0f);
+		m_MVP.view = glm::lookAt(m_CameraPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		m_MVP.model = glm::mat4(1.0f);
+
+		m_MVP.projection[1][1] *= -1.f;
+
 		// Create a mesh
 		// Vertex data
-		std::vector<Vertex> meshVertices = {
+		std::vector<Vertex> meshVertices = { 
 			{{-0.1, -0.4, 0.0}, {1.0,0.0,0.0}},		// 0
 			{{-0.1, 0.4, 0.0}, {0.0,1.0,0.0}},		// 1
 			{{-0.9, 0.4, 0.0}, {0.0,0.0,1.0}},		// 2
@@ -41,8 +48,8 @@ int VulkanRenderer::Init(Window* window)
 
 		std::vector<Vertex> meshVertices2 = {
 			{{0.9, -0.4, 0.0}, {1.0,0.0,0.0}},		// 0
-			{{0.9, 0.4, 0.0}, {0.0,1.0,0.0}},			// 1
-			{{0.1, 0.4, 0.0}, {0.0,0.0,1.0}},			// 2
+			{{0.9, 0.4, 0.0}, {0.0,1.0,0.0}},		// 1
+			{{0.1, 0.4, 0.0}, {0.0,0.0,1.0}},		// 2
 			{{0.1, -0.4, 0.0}, {1.0,1.0,0.0}},		// 3
 		};
 
@@ -74,6 +81,9 @@ int VulkanRenderer::Init(Window* window)
 		m_MeshList.push_back(m2);
 
 		CreateCommandBuffers();
+		CreateUniformBuffers();
+		CreateDescriptorPool();
+		CreateDescriptorSets();
 		RecordCommands();
 		CreateSynchronization();
 	}
@@ -84,6 +94,106 @@ int VulkanRenderer::Init(Window* window)
 
 	return EXIT_SUCCESS;
 }
+
+void VulkanRenderer::Update(float deltaTime)
+{
+	bool hasPressedW = InputHandler::GetKeyIsDown(GLFW_KEY_W);
+	bool hasPressedS = InputHandler::GetKeyIsDown(GLFW_KEY_S);
+	bool hasPressedD = InputHandler::GetKeyIsDown(GLFW_KEY_D);
+	bool hasPressedA = InputHandler::GetKeyIsDown(GLFW_KEY_A);
+
+	double deltaX = InputHandler::MouseXDelta();
+	double deltaY = InputHandler::MouseYDelta();
+
+	float rotationSpeed{.1f};
+	float moveSpeed{10.f};
+
+	m_CameraYaw += deltaX * rotationSpeed;
+	m_CameraPitch += deltaY * rotationSpeed;
+
+	if (hasPressedW)
+	{
+		m_CameraPos += m_CameraFront * moveSpeed * deltaTime;
+	}
+	else if (hasPressedS)
+	{
+		m_CameraPos -= m_CameraFront * moveSpeed * deltaTime;
+	}
+
+	if (hasPressedD)
+	{
+		m_CameraPos += (glm::normalize(glm::cross(m_CameraFront, m_CameraUp))) * moveSpeed * deltaTime;
+	}
+	else if (hasPressedA)
+	{
+		m_CameraPos -= (glm::normalize(glm::cross(m_CameraFront, m_CameraUp))) * moveSpeed * deltaTime;
+	}
+
+	glm::vec3 direction{};
+	direction.x = cos(glm::radians(m_CameraYaw)) * cos(glm::radians(m_CameraPitch));
+	direction.y = sin(glm::radians(m_CameraPitch));
+	direction.z = sin(glm::radians(m_CameraYaw)) * cos(glm::radians(m_CameraPitch));
+
+	m_CameraFront = glm::normalize(direction);
+
+	m_MVP.view =  glm::lookAt(m_CameraPos, m_CameraPos + m_CameraFront, m_CameraUp);
+}
+
+void VulkanRenderer::Cleanup()
+{
+	// Wait until no actions being run on device before destroy
+	vkDeviceWaitIdle(m_MainDevice.logicalDevice);
+
+	vkDestroyDescriptorPool(m_MainDevice.logicalDevice, m_DescriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(m_MainDevice.logicalDevice, m_DescriptorSetLayout, nullptr);
+	for (size_t i{}; i < m_UniformBuffer.size(); ++i)
+	{
+		vkDestroyBuffer(m_MainDevice.logicalDevice, m_UniformBuffer[i], nullptr);
+		vkFreeMemory(m_MainDevice.logicalDevice, m_UniformBufferMemory[i], nullptr);
+	}
+
+	// Cleanup
+	for (auto& mesh : m_MeshList)
+	{
+		mesh.DestroyBuffers();
+	}
+
+	for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
+	{
+		vkDestroySemaphore(m_MainDevice.logicalDevice, m_RendersFinished[i], nullptr);
+		vkDestroySemaphore(m_MainDevice.logicalDevice, m_ImagesAvailable[i], nullptr);
+		vkDestroyFence(m_MainDevice.logicalDevice, m_DrawFences[i], nullptr);
+	}
+
+	vkDestroyCommandPool(m_MainDevice.logicalDevice, m_GraphicsCommandPool, nullptr);
+
+	for (const auto& framebuffer : m_SwapchainFramebuffers)
+	{
+		vkDestroyFramebuffer(m_MainDevice.logicalDevice, framebuffer, nullptr);
+	}
+
+	vkDestroyPipeline(m_MainDevice.logicalDevice, m_GraphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(m_MainDevice.logicalDevice, m_PipelineLayout, nullptr);
+	vkDestroyRenderPass(m_MainDevice.logicalDevice, m_RenderPass, nullptr);
+
+	for (const auto& image : m_SwapchainImages)
+	{
+		vkDestroyImageView(m_MainDevice.logicalDevice, image.imageView, nullptr);
+	}
+
+	vkDestroySwapchainKHR(m_MainDevice.logicalDevice, m_Swapchain, nullptr);
+	vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr); // allocator param not needed.
+
+	if (CheckValidationEnabled())
+	{
+		DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
+	}
+
+	// Order is important, instance should be last (I think)
+	vkDestroyDevice(m_MainDevice.logicalDevice, nullptr);
+	vkDestroyInstance(m_Instance, nullptr); // allocator param is custom de allocator func
+}
+
 
 void VulkanRenderer::Draw()
 {
@@ -103,6 +213,8 @@ void VulkanRenderer::Draw()
 	{
 		throw std::runtime_error("Failed to acquire next image");
 	}
+
+	UpdateUniformBuffer(imageIndex);
 
 	// -- SUBMIT COMMAND BUFFER TO RENDER
 	// Queue submission information
@@ -148,53 +260,6 @@ void VulkanRenderer::Draw()
 
 	// Used to make semi unique semaphores, otherwise semaphore will be used for multiple frames and trigger irregularly
 	m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAME_DRAWS;
-}
-
-void VulkanRenderer::Cleanup()
-{
-	// Wait until no actions being run on device before destroy
-	vkDeviceWaitIdle(m_MainDevice.logicalDevice);
-
-	// Cleanup
-	for (auto & mesh : m_MeshList)
-	{
-		mesh.DestroyBuffers();
-	}
-
-	for (size_t i = 0; i < MAX_FRAME_DRAWS; ++i)
-	{
-		vkDestroySemaphore(m_MainDevice.logicalDevice, m_RendersFinished[i], nullptr);
-		vkDestroySemaphore(m_MainDevice.logicalDevice, m_ImagesAvailable[i], nullptr);
-		vkDestroyFence(m_MainDevice.logicalDevice, m_DrawFences[i], nullptr);
-	}
-
-	vkDestroyCommandPool(m_MainDevice.logicalDevice, m_GraphicsCommandPool, nullptr);
-
-	for (const auto & framebuffer : m_SwapchainFramebuffers)
-	{
-		vkDestroyFramebuffer(m_MainDevice.logicalDevice, framebuffer, nullptr);
-	}
-
-	vkDestroyPipeline(m_MainDevice.logicalDevice, m_GraphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(m_MainDevice.logicalDevice, m_PipelineLayout, nullptr);
-	vkDestroyRenderPass(m_MainDevice.logicalDevice, m_RenderPass, nullptr);
-
-	for (const auto& image: m_SwapchainImages)
-	{
-		vkDestroyImageView(m_MainDevice.logicalDevice, image.imageView, nullptr);
-	}
-
-	vkDestroySwapchainKHR(m_MainDevice.logicalDevice, m_Swapchain, nullptr);
-	vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr); // allocator param not needed.
-
-	if (CheckValidationEnabled())
-	{
-		DestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
-	}
-
-	// Order is important, instance should be last (I think)
-	vkDestroyDevice(m_MainDevice.logicalDevice, nullptr);
-	vkDestroyInstance(m_Instance, nullptr); // allocator param is custom de allocator func
 }
 
 void VulkanRenderer::CreateInstance()
@@ -484,6 +549,29 @@ void VulkanRenderer::CreateRenderPass()
 	}
 }
 
+void VulkanRenderer::CreateDescriptorSetLayout()
+{
+	// MVP binding info
+	VkDescriptorSetLayoutBinding mvpLayoutBinding{};
+	mvpLayoutBinding.binding = 0;											// Where to bind in shader (layout(binding = 0))
+	mvpLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;	// Type of descriptor (uniform, dynamic uniform, image sampler etc...)
+	mvpLayoutBinding.descriptorCount = 1;									// Number of descriptors for binding
+	mvpLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;				// Shader stage to bind to
+	mvpLayoutBinding.pImmutableSamplers = nullptr;							// For textures: can make sampler immutable
+
+	// Create descriptor set layout with given bindings.
+	VkDescriptorSetLayoutCreateInfo layoutCreateInfo{};
+	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutCreateInfo.bindingCount = 1;										// Number of binding info's
+	layoutCreateInfo.pBindings = &mvpLayoutBinding;							// Bindings
+
+	VkResult result = vkCreateDescriptorSetLayout(m_MainDevice.logicalDevice, &layoutCreateInfo, nullptr, &m_DescriptorSetLayout);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Error creating descriptor layout");
+	}
+}
+
 void VulkanRenderer::CreateGraphicsPipeline()
 {
 	// Read in SPIR-V code of shaders
@@ -585,16 +673,16 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	// -- RASTERIZER --
 	VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo{};
 	rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizerCreateInfo.depthClampEnable = VK_FALSE;			// Change if fragments beyond near/far plane are clipped or clamped to plane (need to enable device feature for this)
-	rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;	// Discard data and skip. Used for data without rendering (Leave to false)
+	rasterizerCreateInfo.depthClampEnable = VK_FALSE;					// Change if fragments beyond near/far plane are clipped or clamped to plane (need to enable device feature for this)
+	rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;			// Discard data and skip. Used for data without rendering (Leave to false)
 
-	rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;	// How to handle polygon rendering. (fill will consider all points within polygon as fragment/pixels. line is handy for wire frames)
-																// other needs GPU features
+	rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;			// How to handle polygon rendering. (fill will consider all points within polygon as fragment/pixels. line is handy for wire frames)
+																		// other needs GPU features
 
-	rasterizerCreateInfo.lineWidth = 1.0f;						// Any value other that 1 needs GPU feature
-	rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;		// Don't render back side.
-	rasterizerCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;	// Which side is front
-	rasterizerCreateInfo.depthBiasEnable = VK_FALSE;			// Whether to add depth bias to fragments (good for stopping "Shadow acne" in shadow mapping)
+	rasterizerCreateInfo.lineWidth = 1.0f;								// Any value other that 1 needs GPU feature
+	rasterizerCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;				// Don't render back side.
+	rasterizerCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;	// Which side is front
+	rasterizerCreateInfo.depthBiasEnable = VK_FALSE;					// Whether to add depth bias to fragments (good for stopping "Shadow acne" in shadow mapping)
 
 	// -- MULTISAMPLING --
 	VkPipelineMultisampleStateCreateInfo multiSamplingCreateInfo{};
@@ -631,11 +719,11 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	colorBlendingCreateInfo.attachmentCount = 1;
 	colorBlendingCreateInfo.pAttachments = &colorState;
 	
-	// -- PIPELINE LAYOUT (TODO: apply future descriptor set layouts)
+	// -- PIPELINE LAYOUT --
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
 	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutCreateInfo.setLayoutCount = 0;
-	pipelineLayoutCreateInfo.pSetLayouts = nullptr;
+	pipelineLayoutCreateInfo.setLayoutCount = 1;
+	pipelineLayoutCreateInfo.pSetLayouts = &m_DescriptorSetLayout;
 	pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
 	pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
 
@@ -772,6 +860,103 @@ void VulkanRenderer::CreateSynchronization()
 	}
 }
 
+void VulkanRenderer::CreateUniformBuffers()
+{
+	// Buffer size will be size of all 3 variables (will offset to access)
+	VkDeviceSize bufferSize = sizeof(MVP);
+
+	// One uniform buffer for each image (and by extension, command buffer)
+	// To prevent race conditions
+	m_UniformBuffer.resize(m_SwapchainImages.size());
+	m_UniformBufferMemory.resize(m_SwapchainImages.size());
+
+	// Create uniform buffers
+	for (size_t i{}; i < m_SwapchainImages.size(); ++i)
+	{
+		CreateBuffer(
+			m_MainDevice.physicalDevice,
+			m_MainDevice.logicalDevice,
+			bufferSize,
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			&m_UniformBuffer[i],
+			&m_UniformBufferMemory[i]
+		);
+	}
+}
+
+void VulkanRenderer::CreateDescriptorPool()
+{
+	// Type of descriptors and how many descriptors (combined makes pool size)
+	VkDescriptorPoolSize poolSize{};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = static_cast<uint32_t>(m_UniformBuffer.size());
+
+	VkDescriptorPoolCreateInfo poolCreateInfo{};
+	poolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolCreateInfo.maxSets = static_cast<uint32_t>(m_UniformBuffer.size());		// Maximum number of descriptor sets that can be created from pool
+	poolCreateInfo.poolSizeCount = 1;											// Amount of pool sizes being passed
+	poolCreateInfo.pPoolSizes = &poolSize;										// Pool sizes to create pool with
+
+	VkResult result = vkCreateDescriptorPool(m_MainDevice.logicalDevice , &poolCreateInfo, nullptr, &m_DescriptorPool);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create descriptor pool");
+	}
+}
+
+void VulkanRenderer::CreateDescriptorSets()
+{
+	// Resize descriptor size so one for every buffer
+	m_DescriptorSets.resize(m_UniformBuffer.size());
+
+	std::vector<VkDescriptorSetLayout> setLayouts(m_UniformBuffer.size(), m_DescriptorSetLayout);
+
+	// Descriptor set allocation info
+	VkDescriptorSetAllocateInfo setAllocInfo{};
+	setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	setAllocInfo.descriptorPool = m_DescriptorPool;										// Pool to allocate descriptor set from
+	setAllocInfo.descriptorSetCount = static_cast<uint32_t>(m_UniformBuffer.size());	// Number of sets to allocate
+	setAllocInfo.pSetLayouts = setLayouts.data();										// Layouts to use to allocate sets (1:1 relationship)
+	
+	VkResult result = vkAllocateDescriptorSets(m_MainDevice.logicalDevice, &setAllocInfo, m_DescriptorSets.data());
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Error allocating descriptor set");
+	}
+
+	// Update all descriptor set buffer bindings
+	for (size_t i = 0; i < m_UniformBuffer.size(); i++)
+	{
+		// Buffer info and data offset info
+		VkDescriptorBufferInfo mvpBufferInfo{};
+		mvpBufferInfo.buffer = m_UniformBuffer[i];						// Buffer to get data from
+		mvpBufferInfo.offset = 0;										// Position of start of data
+		mvpBufferInfo.range = sizeof(MVP);								// Size of data
+
+		// Data about connection between binding and buffer
+		VkWriteDescriptorSet mvpSetWrite{};
+		mvpSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		mvpSetWrite.dstSet = m_DescriptorSets[i];						// Descriptor set to update
+		mvpSetWrite.dstBinding = 0;										// Binding to update (matches with binding on layout/shader)
+		mvpSetWrite.dstArrayElement = 0;								// Index in array to update
+		mvpSetWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // Type of descriptor
+		mvpSetWrite.descriptorCount = 1;								// Amount to update
+		mvpSetWrite.pBufferInfo = &mvpBufferInfo;						// Buffer information data to bind
+
+		// Update descriptor sets with new buffer binding info
+		vkUpdateDescriptorSets(m_MainDevice.logicalDevice, 1, &mvpSetWrite, 0, nullptr);
+	}
+}
+
+void VulkanRenderer::UpdateUniformBuffer(uint32_t imageIndex)
+{
+	void* data;
+	vkMapMemory(m_MainDevice.logicalDevice, m_UniformBufferMemory[imageIndex], 0, sizeof(MVP), 0, &data);
+	memcpy(data, &m_MVP, sizeof(MVP));
+	vkUnmapMemory(m_MainDevice.logicalDevice, m_UniformBufferMemory[imageIndex]);
+}
+
 void VulkanRenderer::RecordCommands()
 {
 	VkCommandBufferBeginInfo commandBufferBeginInfo{};
@@ -817,6 +1002,9 @@ void VulkanRenderer::RecordCommands()
 
 					// Bind mesh index buffer with 0 offset and using uint32_t
 					vkCmdBindIndexBuffer(m_CommandBuffers[i], mesh.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+					// Bind descriptor sets
+					vkCmdBindDescriptorSets(m_CommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout, 0, 1, &m_DescriptorSets[i], 0, nullptr);
 
 					// Execute pipeline (will run through this x amount of times)
 					vkCmdDrawIndexed(m_CommandBuffers[i], mesh.GetIndexCount(), 1, 0, 0, 0);

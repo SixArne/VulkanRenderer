@@ -4,6 +4,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <iostream>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <vector>
 #include <algorithm>
 #include <array>
@@ -20,10 +23,17 @@ public:
 	~VulkanRenderer() = default;
 
 	int Init(Window* window);
+	void Update(float deltaTime);
 	void Draw();
 	void Cleanup();
 
 private:
+	glm::vec3 m_CameraPos{ 0,0,10 };
+	glm::vec3 m_CameraFront{ 0,0,1 };
+	glm::vec3 m_CameraUp{ 0,1,0 };
+	float m_CameraYaw{-90.f};
+	float m_CameraPitch{};
+
 	Window* m_pWindow;
 
 	uint32_t m_CurrentFrame{};
@@ -31,11 +41,17 @@ private:
 	// Scene objects
 	std::vector<Mesh> m_MeshList{};
 
+	// Scene settings
+	struct MVP {
+		glm::mat4 projection;
+		glm::mat4 view;
+		glm::mat4 model;
+	} m_MVP;
+
 	// Vulkan components
 	VkInstance m_Instance;
 	VkDebugUtilsMessengerEXT m_DebugMessenger;
-	struct
-	{
+	struct {
 		VkPhysicalDevice physicalDevice;
 		VkDevice logicalDevice;
 	} m_MainDevice;
@@ -49,6 +65,15 @@ private:
 	std::vector<SwapchainImage> m_SwapchainImages{};
 	std::vector<VkFramebuffer> m_SwapchainFramebuffers{};
 	std::vector<VkCommandBuffer> m_CommandBuffers{};
+
+	// - Descriptor
+	VkDescriptorSetLayout m_DescriptorSetLayout{};
+
+	VkDescriptorPool m_DescriptorPool{};
+	std::vector<VkDescriptorSet> m_DescriptorSets{};
+
+	std::vector<VkBuffer> m_UniformBuffer{};
+	std::vector<VkDeviceMemory> m_UniformBufferMemory{};
 
 	// - Pipeline
 	VkPipeline m_GraphicsPipeline{};
@@ -81,11 +106,18 @@ private:
 	void CreateDebugMessenger();
 	void CreateSwapchain();
 	void CreateRenderPass();
+	void CreateDescriptorSetLayout();
 	void CreateGraphicsPipeline();
 	void CreateFrameBuffers();
 	void CreateCommandPool();
 	void CreateCommandBuffers();
 	void CreateSynchronization();
+	
+	void CreateUniformBuffers();
+	void CreateDescriptorPool();
+	void CreateDescriptorSets();
+
+	void UpdateUniformBuffer(uint32_t imageIndex);
 
 	// - Record functions
 	void RecordCommands();
