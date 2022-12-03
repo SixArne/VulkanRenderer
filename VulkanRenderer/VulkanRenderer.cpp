@@ -106,7 +106,7 @@ void VulkanRenderer::Update(float deltaTime)
 	double deltaY = InputHandler::MouseYDelta();
 
 	float rotationSpeed{.1f};
-	float moveSpeed{10.f};
+	float moveSpeed{20.f};
 
 	m_CameraYaw += deltaX * rotationSpeed;
 	m_CameraPitch += deltaY * rotationSpeed;

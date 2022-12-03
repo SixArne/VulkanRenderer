@@ -15,7 +15,9 @@ Window::Window(std::string& wName, uint32_t windowWidth, uint32_t windowHeight)
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
 	// Create window
-	m_pWindow = glfwCreateWindow(m_Width, m_Height, m_Name.c_str(), nullptr, nullptr);
+	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+	m_pWindow = glfwCreateWindow(m_Width, m_Height, m_Name.c_str(), glfwGetPrimaryMonitor(), nullptr);
+	glfwSetWindowMonitor(m_pWindow, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 }
 
 Window::~Window()
@@ -28,6 +30,7 @@ void Window::Init(VulkanRenderer& renderer)
 {
 	//float angle = 0.0f;
 
+	// Keys to listen to
 	std::vector<int> keys{
 		GLFW_KEY_W,
 		GLFW_KEY_S,
@@ -57,11 +60,11 @@ void Window::Init(VulkanRenderer& renderer)
 
 		if (m_ElapsedMilliSeconds >= m_FPSIntervalMilliseconds)
 		{
-			/*std::cout << "----------------------------------------------" << '\n';
+			std::cout << "----------------------------------------------" << '\n';
 			std::cout << "Time since last frame: " << m_DeltaTime << "ms" << '\n';
 			std::cout << "FPS: " << 1.0 / m_DeltaTime << '\n';
 			std::cout << "----------------------------------------------" << '\n';
-			m_ElapsedMilliSeconds = 0;*/
+			m_ElapsedMilliSeconds = 0;
 		}
 	}
 
