@@ -24,6 +24,7 @@ public:
 
 	int Init(Window* window);
 	void Update(float deltaTime);
+	void UpdateModel(glm::mat4 newModel);
 	void Draw();
 	void Cleanup();
 
@@ -42,11 +43,10 @@ private:
 	std::vector<Mesh> m_MeshList{};
 
 	// Scene settings
-	struct MVP {
+	struct UboViewProjection {
 		glm::mat4 projection;
 		glm::mat4 view;
-		glm::mat4 model;
-	} m_MVP;
+	} m_UboViewProjection;
 
 	// Vulkan components
 	VkInstance m_Instance;
@@ -72,8 +72,16 @@ private:
 	VkDescriptorPool m_DescriptorPool{};
 	std::vector<VkDescriptorSet> m_DescriptorSets{};
 
-	std::vector<VkBuffer> m_UniformBuffer{};
-	std::vector<VkDeviceMemory> m_UniformBufferMemory{};
+	std::vector<VkBuffer> m_VPUniformBuffer{};
+	std::vector<VkDeviceMemory> m_VPUniformBufferMemory{};
+
+	std::vector<VkBuffer> m_ModelDynamicUniformBuffer{};
+	std::vector<VkDeviceMemory> m_ModelDynamicUniformBufferMemory{};
+
+	VkDeviceSize m_MinUniformBufferOffset{};
+	size_t m_ModelUniformAllignment{};
+
+	UboModel* m_ModelTransferSpace{};
 
 	// - Pipeline
 	VkPipeline m_GraphicsPipeline{};
@@ -117,10 +125,13 @@ private:
 	void CreateDescriptorPool();
 	void CreateDescriptorSets();
 
-	void UpdateUniformBuffer(uint32_t imageIndex);
+	void UpdateUniformBuffers(uint32_t imageIndex);
 
 	// - Record functions
 	void RecordCommands();
+
+	// - Allocate functions
+	void AllocateDynamicBufferTransferSpace();
 	
 	// - Destroy functions
 	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);

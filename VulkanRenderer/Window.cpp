@@ -15,9 +15,9 @@ Window::Window(std::string& wName, uint32_t windowWidth, uint32_t windowHeight)
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
 	// Create window
-	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-	m_pWindow = glfwCreateWindow(m_Width, m_Height, m_Name.c_str(), glfwGetPrimaryMonitor(), nullptr);
-	glfwSetWindowMonitor(m_pWindow, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
+	//const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+	m_pWindow = glfwCreateWindow(m_Width, m_Height, m_Name.c_str(), nullptr, nullptr);
+	//glfwSetWindowMonitor(m_pWindow, glfwGetPrimaryMonitor(), 0, 0, mode->width, mode->height, mode->refreshRate);
 }
 
 Window::~Window()
@@ -28,7 +28,7 @@ Window::~Window()
 
 void Window::Init(VulkanRenderer& renderer)
 {
-	//float angle = 0.0f;
+	float angle = 0.0f;
 
 	// Keys to listen to
 	std::vector<int> keys{
@@ -48,9 +48,10 @@ void Window::Init(VulkanRenderer& renderer)
 		// Fetch events every frame
 		glfwPollEvents();
 
-		//angle += 100000.f * m_DeltaTime;
+		angle += 100000.f * m_DeltaTime;
 		//glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 0.0f, 1.0f))
 		renderer.Update(m_DeltaTime);
+		//renderer.UpdateModel(glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 0.0f, 1.0f)));
 		renderer.Draw();
 
 		const auto end = std::chrono::high_resolution_clock::now();

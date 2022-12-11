@@ -8,7 +8,7 @@ int main()
 {
 	std::string windowName = "Vulkan renderer";
 
-	Window window = Window{ windowName, 800, 600 };
+	Window window = Window{ windowName, 640, 480 };
 	VulkanRenderer renderer = VulkanRenderer{};
 
 	if(renderer.Init(&window) == EXIT_FAILURE)
