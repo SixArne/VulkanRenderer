@@ -6,7 +6,7 @@
 #include <vector>
 #include "Utilities.h"
 
-struct UboModel
+struct Model
 {
 	glm::mat4 model{};
 };
@@ -21,11 +21,14 @@ public:
 		VkQueue transferQueue, 
 		VkCommandPool transferCommandPool, 
 		std::vector<Vertex>* vertices,
-		std::vector<uint32_t>* indices
+		std::vector<uint32_t>* indices,
+		int newTexId
 	);
 
 	void SetModel(glm::mat4 newModel);
-	UboModel GetModel();
+	Model GetModel();
+
+	int GetTexId();
 
 	uint32_t GetVertexCount();
 	uint32_t GetIndexCount();
@@ -35,14 +38,16 @@ public:
 	void DestroyBuffers();
 
 private:
-	UboModel m_UboModel{};
+	Model m_Model{};
+
+	int m_TexId{};
 
 	int32_t m_VertexCount{};
 	VkBuffer m_VertexBuffer{};
 	VkDeviceMemory m_VertexBufferMemory{};
 
 	uint32_t m_IndexCount{};
-	VkBuffer m_IndexBuffer{};
+	VkBuffer m_IndexBuffer{}; 
 	VkDeviceMemory m_IndexBufferMemory{};
 
 	VkPhysicalDevice m_PhysicalDevice{};

@@ -6,7 +6,8 @@ Mesh::Mesh(
 	VkQueue transferQueue, 
 	VkCommandPool transferCommandPool, 
 	std::vector<Vertex>* vertices, 
-	std::vector<uint32_t>* indices
+	std::vector<uint32_t>* indices,
+	int nexTexId
 )
 {
 	m_VertexCount = (int32_t)vertices->size();
@@ -16,17 +17,18 @@ Mesh::Mesh(
 	CreateVertexBuffer(transferQueue, transferCommandPool, vertices);
 	CreateIndexBuffer(transferQueue, transferCommandPool, indices);
 
-	m_UboModel.model = glm::mat4(1.0f);
+	m_Model.model = glm::mat4(1.0f);
+	m_TexId = nexTexId;
 }
 
 void Mesh::SetModel(glm::mat4 newModel)
 {
-	m_UboModel.model = newModel;
+	m_Model.model = newModel;
 }
 
-UboModel Mesh::GetModel()
+Model Mesh::GetModel()
 {
-	return m_UboModel;
+	return m_Model;
 }
 
 uint32_t Mesh::GetVertexCount()
@@ -37,6 +39,11 @@ uint32_t Mesh::GetVertexCount()
 VkBuffer Mesh::GetVertexBuffer()
 {
 	return m_VertexBuffer;
+}
+
+int Mesh::GetTexId()
+{
+	return m_TexId;
 }
 
 uint32_t Mesh::GetIndexCount()

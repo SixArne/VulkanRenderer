@@ -48,10 +48,17 @@ void Window::Init(VulkanRenderer& renderer)
 		// Fetch events every frame
 		glfwPollEvents();
 
-		angle += 100000.f * m_DeltaTime;
-		//glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 0.0f, 1.0f))
+		angle += 5.f * m_DeltaTime;
+		m_Distance += 1.f * m_DeltaTime;
+		
+		glm::mat4 firstModel(1.0f);
+
+		firstModel = glm::translate(firstModel, glm::vec3(0.f, 0.f, -20.0f));
+		firstModel = glm::rotate(firstModel, glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+		firstModel = glm::scale(firstModel, glm::vec3(.3f, .3f, .3f));
+
 		renderer.Update(m_DeltaTime);
-		//renderer.UpdateModel(glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 0.0f, 1.0f)));
+		renderer.UpdateModel(0, firstModel);
 		renderer.Draw();
 
 		const auto end = std::chrono::high_resolution_clock::now();

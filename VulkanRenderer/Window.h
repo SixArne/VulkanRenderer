@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#define GLM_FORCE_DEPTH_ZERO_ONE
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -25,6 +26,8 @@ private:
 	std::string m_Name{};
 	uint32_t m_Width{};
 	uint32_t m_Height{};
+
+	float m_Distance{};
 
 	double m_ElapsedMilliSeconds{};
 	float m_DeltaTime{};
